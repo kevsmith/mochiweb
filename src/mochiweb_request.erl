@@ -226,7 +226,8 @@ stream_body(MaxChunkSize, ChunkFun, FunState, MaxBodyLength) ->
              end,
     case Expect of
         "100-continue" ->
-            start_raw_response({100, gb_trees:empty()});
+            _ = start_raw_response({100, gb_trees:empty()}),
+            ok;
         _Else ->
             ok
     end,
@@ -248,9 +249,7 @@ stream_body(MaxChunkSize, ChunkFun, FunState, MaxBodyLength) ->
                 exit({body_too_large, content_length});
             _ ->
                 stream_unchunked_body(Length, ChunkFun, FunState)
-            end;
-        Length ->
-            exit({length_not_integer, Length})
+            end
     end.
 
 
@@ -547,10 +546,10 @@ stream_unchunked_body(Length, Fun, FunState) when Length > 0 ->
 %% @spec read_chunk_length() -> integer()
 %% @doc Read the length of the next HTTP chunk.
 read_chunk_length() ->
-    mochiweb_socket:setopts(Socket, [{packet, line}]),
+    ok = mochiweb_socket:setopts(Socket, [{packet, line}]),
     case mochiweb_socket:recv(Socket, 0, ?IDLE_TIMEOUT) of
         {ok, Header} ->
-            mochiweb_socket:setopts(Socket, [{packet, raw}]),
+            ok = mochiweb_socket:setopts(Socket, [{packet, raw}]),
             Splitter = fun (C) ->
                                C =/= $\r andalso C =/= $\n andalso C =/= $
                        end,
@@ -564,7 +563,7 @@ read_chunk_length() ->
 %% @doc Read in a HTTP chunk of the given length. If Length is 0, then read the
 %%      HTTP footers (as a list of binaries, since they're nominal).
 read_chunk(0) ->
-    mochiweb_socket:setopts(Socket, [{packet, line}]),
+    ok = mochiweb_socket:setopts(Socket, [{packet, line}]),
     F = fun (F1, Acc) ->
                 case mochiweb_socket:recv(Socket, 0, ?IDLE_TIMEOUT) of
                     {ok, <<"\r\n">>} ->
@@ -576,7 +575,7 @@ read_chunk(0) ->
                 end
         end,
     Footers = F(F, []),
-    mochiweb_socket:setopts(Socket, [{packet, raw}]),
+    ok = mochiweb_socket:setopts(Socket, [{packet, raw}]),
     put(?SAVE_RECV, true),
     Footers;
 read_chunk(Length) ->
@@ -661,7 +660,7 @@ maybe_serve_file(File, ExtraHeaders) ->
                                       [{"last-modified", LastModified}
                                        | ExtraHeaders],
                                       {file, IoDevice}}),
-                            file:close(IoDevice),
+                            ok = file:close(IoDevice),
                             Res;
                         _ ->
                             not_found(ExtraHeaders)
@@ -811,6 +810,6 @@ accepts_content_type(ContentType1) ->
 %%
 %% Tests
 %%
--include_lib("eunit/include/eunit.hrl").
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 -endif.

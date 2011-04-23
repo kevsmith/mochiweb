@@ -119,11 +119,11 @@ parse_options([{profile_fun, ProfileFun} | Rest], State) when is_function(Profil
 start_server(State=#mochiweb_socket_server{ssl=Ssl, name=Name}) ->
     case Ssl of
         true ->
-            application:start(crypto),
-            application:start(public_key),
-            application:start(ssl);
+            ok = mochiweb:ensure_started(crypto),
+            ok = mochiweb:ensure_started(public_key),
+            ok = mochiweb:ensure_started(ssl);
         false ->
-            void
+            ok
     end,
     case Name of
         undefined ->
@@ -165,27 +165,7 @@ init(State=#mochiweb_socket_server{ip=Ip, port=Port, backlog=Backlog, nodelay=No
         {_, _, _, _, _, _, _, _} -> % IPv6
             [inet6, {ip, Ip} | BaseOpts]
     end,
-    case listen(Port, Opts, State) of
-        {stop, eacces} ->
-            case Port < 1024 of
-                true ->
-                    case catch fdsrv:start() of
-                        {ok, _} ->
-                            case fdsrv:bind_socket(tcp, Port) of
-                                {ok, Fd} ->
-                                    listen(Port, [{fd, Fd} | Opts], State);
-                                _ ->
-                                    {stop, fdsrv_bind_failed}
-                            end;
-                        _ ->
-                            {stop, fdsrv_start_failed}
-                    end;
-                false ->
-                    {stop, eacces}
-            end;
-        Other ->
-            Other
-    end.
+    listen(Port, Opts, State).
 
 new_acceptor_pool(Listen,
                   State=#mochiweb_socket_server{acceptor_pool=Pool,
@@ -271,15 +251,8 @@ handle_cast(stop, State) ->
 
 terminate(Reason, State) when ?is_old_state(State) ->
     terminate(Reason, upgrade_state(State));
-terminate(_Reason, #mochiweb_socket_server{listen=Listen, port=Port}) ->
-    mochiweb_socket:close(Listen),
-    case Port < 1024 of
-        true ->
-            catch fdsrv:stop(),
-            ok;
-        false ->
-            ok
-    end.
+terminate(_Reason, #mochiweb_socket_server{listen=Listen}) ->
+    mochiweb_socket:close(Listen).
 
 code_change(_OldVsn, State, _Extra) ->
     State.
@@ -361,4 +334,3 @@ upgrade_state_test() ->
     ?assertEqual(CmpState, State).
 
 -endif.
-

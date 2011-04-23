@@ -116,14 +116,14 @@ default_body(Req) ->
     default_body(Req, Req:get(method), Req:get(path)).
 
 loop(Socket, Body) ->
-    mochiweb_socket:setopts(Socket, [{packet, http}]),
+    ok = mochiweb_socket:setopts(Socket, [{packet, http}]),
     request(Socket, Body).
 
 request(Socket, Body) ->
-    mochiweb_socket:setopts(Socket, [{active, once}]),
+    ok = mochiweb_socket:setopts(Socket, [{active, once}]),
     receive
         {Protocol, _, {http_request, Method, Path, Version}} when Protocol == http orelse Protocol == ssl ->
-            mochiweb_socket:setopts(Socket, [{packet, httph}]),
+            ok = mochiweb_socket:setopts(Socket, [{packet, httph}]),
             headers(Socket, {Method, Path, Version}, [], Body, 0);
         {Protocol, _, {http_error, "\r\n"}} when Protocol == http orelse Protocol == ssl ->
             request(Socket, Body);
@@ -146,10 +146,10 @@ reentry(Body) ->
 
 headers(Socket, Request, Headers, _Body, ?MAX_HEADERS) ->
     %% Too many headers sent, bad request.
-    mochiweb_socket:setopts(Socket, [{packet, raw}]),
+    ok = mochiweb_socket:setopts(Socket, [{packet, raw}]),
     handle_invalid_request(Socket, Request, Headers);
 headers(Socket, Request, Headers, Body, HeaderCount) ->
-    mochiweb_socket:setopts(Socket, [{active, once}]),
+    ok = mochiweb_socket:setopts(Socket, [{active, once}]),
     receive
         {Protocol, _, http_eoh} when Protocol == http orelse Protocol == ssl ->
             MHeaders = mochiweb_headers:make(Headers),
@@ -197,14 +197,19 @@ headers_ws_upgrade(Socket, Request, Body, H) ->
     mochiweb_websocket_delegate:go(WSPid, Socket),
     call_body(Body#body.websocket_loop, WSReq).
 
+call_body({M, F, A}, Req) ->
+    erlang:apply(M, F, [Req | A]);
 call_body({M, F}, Req) ->
     M:F(Req);
 call_body(Body, Req) ->
     Body(Req).
 
+-spec handle_invalid_request(term()) -> no_return().
 handle_invalid_request(Socket) ->
-    handle_invalid_request(Socket, {'GET', {abs_path, "/"}, {0,9}}, []).
+    handle_invalid_request(Socket, {'GET', {abs_path, "/"}, {0,9}}, []),
+    exit(normal).
 
+-spec handle_invalid_request(term(), term(), term()) -> no_return().
 handle_invalid_request(Socket, Request, RevHeaders) ->
     Req = new_request(Socket, Request, RevHeaders),
     Req:respond({400, [], []}),
@@ -212,7 +217,7 @@ handle_invalid_request(Socket, Request, RevHeaders) ->
     exit(normal).
 
 new_request(Socket, Request, RevHeaders) ->
-    mochiweb_socket:setopts(Socket, [{packet, raw}]),
+    ok = mochiweb_socket:setopts(Socket, [{packet, raw}]),
     mochiweb:new_request({Socket, Request, lists:reverse(RevHeaders)}).
 
 after_response(Body, Req) ->

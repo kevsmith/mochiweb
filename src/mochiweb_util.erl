@@ -684,7 +684,7 @@ guess_mime_test() ->
     "text/plain" = guess_mime(".text"),
     "application/zip" = guess_mime(".zip"),
     "application/zip" = guess_mime("x.zip"),
-    "text/html" = guess_mime("x.html"),
+    "text/html; charset=utf-8" = guess_mime("x.html"),
     "application/xhtml+xml" = guess_mime("x.xhtml"),
     ok.
 
