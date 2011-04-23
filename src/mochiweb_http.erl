@@ -211,14 +211,22 @@ handle_invalid_request(Socket) ->
 
 -spec handle_invalid_request(term(), term(), term()) -> no_return().
 handle_invalid_request(Socket, Request, RevHeaders) ->
-    Req = new_request(Socket, Request, RevHeaders),
-    Req:respond({400, [], []}),
-    mochiweb_socket:close(Socket),
+    case new_request(Socket, Request, RevHeaders) of
+        {error, _} ->
+            ok;
+        Req ->
+            Req:respond({400, [], []}),
+            mochiweb_socket:close(Socket)
+    end,
     exit(normal).
 
 new_request(Socket, Request, RevHeaders) ->
-    ok = mochiweb_socket:setopts(Socket, [{packet, raw}]),
-    mochiweb:new_request({Socket, Request, lists:reverse(RevHeaders)}).
+    case mochiweb_socket:setopts(Socket, [{packet, raw}]) of
+        ok ->
+            mochiweb:new_request({Socket, Request, lists:reverse(RevHeaders)});
+        Error ->
+            Error
+    end.
 
 after_response(Body, Req) ->
     Socket = Req:get(socket),

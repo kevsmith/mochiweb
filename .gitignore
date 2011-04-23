@@ -6,3 +6,7 @@
 .DS_Store
 /TEST-*.xml
 /deps
+examples/https/*.beam
+examples/keepalive/*.beam
+examples/utf8_querystring/*.beam
+examples/websockets/*.beam
